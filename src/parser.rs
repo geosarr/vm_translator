@@ -25,22 +25,26 @@ impl<P: AsRef<Path>> Parser<P> {
     pub fn init(filename: P) -> Self {
         Self { filename }
     }
+
     pub fn filename(&self) -> &P {
         &self.filename
     }
-    pub fn read_lines(&self)
+
+    pub fn parse(&self, row: String) -> Result<String, String> {
+        let out_row = row.trim();
+        if out_row.starts_with("//") || out_row.is_empty() {
+            Err("".to_string())
+        } else {
+            Ok(out_row.to_string())
+        }
+    }
+
+    pub fn read_lines(&self) -> io::Lines<io::BufReader<File>>
     where
         P: Clone,
     {
-        if let Ok(lines) = read_lines(self.filename.clone()) {
-            for line in lines {
-                if let Ok(row) = line {
-                    println!("{:?}", row);
-                } else {
-                    panic!("bad row, check if the rows are correct.");
-                }
-                // counter += 1;
-            }
+        if let Ok(lines) = read_lines(self.filename()) {
+            lines
         } else {
             panic!("Error in file, check its content, the file absolute path.")
         }
