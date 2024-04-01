@@ -2,8 +2,10 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
+type Lines = io::Lines<io::BufReader<File>>;
+
 // Taken from ?
-pub fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+pub fn read_lines<P>(filename: P) -> io::Result<Lines>
 where
     P: AsRef<Path>,
 {
@@ -13,33 +15,89 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
+pub enum Command {
+    ARITHMETIC,
+    CALL,
+    FUNCTION,
+    GOTO,
+    IF,
+    LABEL,
+    POP,
+    PUSH,
+    RETURN,
+}
+
+#[derive(Debug, Clone)]
+pub struct Args {
+    one: Option<String>,
+    two: Option<String>,
+    three: Option<String>,
+}
+
+impl Args {
+    pub fn new() -> Self {
+        Self {
+            one: None,
+            two: None,
+            three: None,
+        }
+    }
+    pub fn mutate(&mut self, args: String, number: usize) {
+        assert!(1 <= number && number <= 3);
+        if number == 1 {
+            self.one = Some(args);
+        } else if number == 2 {
+            self.two = Some(args);
+        } else {
+            self.three = Some(args);
+        }
+    }
+    pub fn is_empty(&self) -> bool {
+        return self.one.is_none() && self.two.is_none() && self.three.is_none();
+    }
+}
+
 #[derive(Debug)]
 pub struct Parser<P>
 where
     P: AsRef<Path>,
 {
     filename: P,
+    parsed_args: Args,
 }
 
 impl<P: AsRef<Path>> Parser<P> {
     pub fn init(filename: P) -> Self {
-        Self { filename }
+        Self {
+            filename,
+            parsed_args: Args::new(),
+        }
     }
 
     pub fn filename(&self) -> &P {
         &self.filename
     }
 
-    pub fn parse(&self, row: String) -> Result<String, String> {
+    pub fn parsed_args_mut(&self) -> &Args {
+        &self.parsed_args
+    }
+
+    pub fn parse(&mut self, row: String) -> Result<Args, String> {
         let out_row = row.trim();
         if out_row.starts_with("//") || out_row.is_empty() {
             Err("".to_string())
         } else {
-            Ok(out_row.to_string())
+            let command_args = row.split_whitespace();
+            let mut args = Args::new();
+            for (number, arg) in command_args.enumerate() {
+                args.mutate(arg.to_string(), number + 1);
+            }
+            self.parsed_args = args.clone();
+            Ok(args)
         }
     }
 
-    pub fn read_lines(&self) -> io::Lines<io::BufReader<File>>
+    pub fn read_lines(&self) -> Lines
     where
         P: Clone,
     {
