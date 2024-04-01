@@ -15,6 +15,7 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
+#[derive(Debug, Clone)]
 pub enum Command {
     ARITHMETIC,
     CALL,
@@ -29,6 +30,7 @@ pub enum Command {
 
 #[derive(Debug, Clone)]
 pub struct Args {
+    command: Option<Command>,
     one: Option<String>,
     two: Option<String>,
     three: Option<String>,
@@ -37,23 +39,46 @@ pub struct Args {
 impl Args {
     pub fn new() -> Self {
         Self {
+            command: None,
             one: None,
             two: None,
             three: None,
         }
     }
-    pub fn mutate(&mut self, args: String, number: usize) {
+    pub fn mutate_args(&mut self, arg: String, number: usize) {
         assert!(1 <= number && number <= 3);
         if number == 1 {
-            self.one = Some(args);
+            self.one = Some(arg.clone());
+            self.mutate_command(arg);
         } else if number == 2 {
-            self.two = Some(args);
+            self.two = Some(arg);
         } else {
-            self.three = Some(args);
+            self.three = Some(arg);
         }
+    }
+    pub fn mutate_command(&mut self, arg: String) {
+        self.command = Some(
+            if arg.starts_with("add")
+                || arg.starts_with("and")
+                || arg.starts_with("or")
+                || arg.starts_with("neg")
+                || arg.starts_with("not")
+                || arg.starts_with("sub")
+                || arg.starts_with("lt")
+                || arg.starts_with("gt")
+                || arg.starts_with("eq")
+            {
+                Command::ARITHMETIC
+            } else if arg.starts_with("pop") {
+                Command::POP
+            } else {
+                Command::PUSH
+            },
+        );
     }
     pub fn is_empty(&self) -> bool {
         return self.one.is_none() && self.two.is_none() && self.three.is_none();
+        // return self.command.is_none();
     }
 }
 
@@ -78,7 +103,7 @@ impl<P: AsRef<Path>> Parser<P> {
         &self.filename
     }
 
-    pub fn parsed_args_mut(&self) -> &Args {
+    pub fn parsed_args(&self) -> &Args {
         &self.parsed_args
     }
 
@@ -90,7 +115,7 @@ impl<P: AsRef<Path>> Parser<P> {
             let command_args = row.split_whitespace();
             let mut args = Args::new();
             for (number, arg) in command_args.enumerate() {
-                args.mutate(arg.to_string(), number + 1);
+                args.mutate_args(arg.to_string(), number + 1);
             }
             self.parsed_args = args.clone();
             Ok(args)

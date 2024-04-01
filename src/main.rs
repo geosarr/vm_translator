@@ -20,7 +20,7 @@ fn main() {
             if row.is_empty() {
                 continue;
             } else {
-                println!("{:?}", parser.parsed_args_mut());
+                println!("{:?}", parser.parsed_args());
                 // let command = row.split_whitespace();
             }
         } else {
