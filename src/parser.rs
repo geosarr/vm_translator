@@ -2,8 +2,9 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-type Lines = io::Lines<io::BufReader<File>>;
+static ARITHMETIC_COMMANDS: [&str; 9] = ["add", "and", "or", "neg", "not", "sub", "lt", "gt", "eq"];
 
+type Lines = io::Lines<io::BufReader<File>>;
 // Taken from ?
 pub fn read_lines<P>(filename: P) -> io::Result<Lines>
 where
@@ -15,8 +16,9 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Command {
+    MSG, // To store comments
     ARITHMETIC,
     CALL,
     FUNCTION,
@@ -28,7 +30,7 @@ pub enum Command {
     RETURN,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Args {
     command: Option<Command>,
     one: Option<String>,
@@ -45,6 +47,18 @@ impl Args {
             three: None,
         }
     }
+    pub fn command(&self) -> &Option<Command> {
+        &self.command
+    }
+    pub fn one(&self) -> &Option<String> {
+        &self.one
+    }
+    pub fn two(&self) -> &Option<String> {
+        &self.two
+    }
+    pub fn three(&self) -> &Option<String> {
+        &self.three
+    }
     pub fn mutate_args(&mut self, arg: String, number: usize) {
         assert!(1 <= number && number <= 3);
         if number == 1 {
@@ -58,19 +72,15 @@ impl Args {
     }
     pub fn mutate_command(&mut self, arg: String) {
         self.command = Some(
-            if arg.starts_with("add")
-                || arg.starts_with("and")
-                || arg.starts_with("or")
-                || arg.starts_with("neg")
-                || arg.starts_with("not")
-                || arg.starts_with("sub")
-                || arg.starts_with("lt")
-                || arg.starts_with("gt")
-                || arg.starts_with("eq")
+            if ARITHMETIC_COMMANDS
+                .iter()
+                .any(|command| arg.starts_with(command))
             {
                 Command::ARITHMETIC
             } else if arg.starts_with("pop") {
                 Command::POP
+            } else if arg.starts_with("//") {
+                Command::MSG
             } else {
                 Command::PUSH
             },
@@ -107,19 +117,20 @@ impl<P: AsRef<Path>> Parser<P> {
         &self.parsed_args
     }
 
-    pub fn parse(&mut self, row: String) -> Result<Args, String> {
+    pub fn parse(&mut self, row: String) -> Args {
         let out_row = row.trim();
-        if out_row.starts_with("//") || out_row.is_empty() {
-            Err("".to_string())
+        let mut args = Args::new();
+        if out_row.starts_with("//") {
+            args.command = Some(Command::MSG);
+            args.one = Some(out_row.to_string());
         } else {
-            let command_args = row.split_whitespace();
-            let mut args = Args::new();
+            let command_args = out_row.split_whitespace();
             for (number, arg) in command_args.enumerate() {
                 args.mutate_args(arg.to_string(), number + 1);
             }
-            self.parsed_args = args.clone();
-            Ok(args)
         }
+        self.parsed_args = args.clone();
+        args
     }
 
     pub fn read_lines(&self) -> Lines
